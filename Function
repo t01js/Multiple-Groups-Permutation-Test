@@ -1,0 +1,72 @@
+# Permutation Test for Multiple Groups
+
+## Initial Definitions
+
+- **x:** A numeric vector containing the data to be analyzed.
+
+- **grupos:** A vector indicating which group each observation in the vector `x` belongs to.
+
+- **myfun:** The statistic of interest for the permutation test. By default, the mean (`mean`) is used, but you can specify another function.
+
+- **nsamp:** The number of permutations to be performed. A higher number improves precision but also increases computation time.
+
+- **alternativa:** A vector specifying the alternative for the permutation test for each group. It can be "bilateral," "unil.inferior," or "unil.superior" for each respective group.
+
+- **seed:** Seed for result reproducibility. If not provided, results may vary between runs.
+
+## `permKsamp` Function
+
+```R
+permKsamp <- function(x, grupos, myfun = mean, nsamp = 10000, alternativa = c("bilateral", "unil.inferior", "unil.superior"), seed = NULL) {
+  # Factorize groups to ensure correct identification of levels
+  grupos <- as.factor(grupos)
+  k <- length(levels(grupos))
+
+  # Calculate the statistic of interest for the observed data
+  theta.hat <- tapply(x, grupos, myfun)
+
+  # Total number of observations and sizes of groups
+  N <- length(x)
+  n <- table(grupos)
+
+  # Set seed for reproducibility
+  if (!is.null(seed)) set.seed(seed)
+
+  # Generate matrices and vectors to store results
+  gmat <- replicate(nsamp, sample.int(N, N, replace = FALSE))
+  theta.mc <- matrix(0, nrow = nsamp, ncol = k)
+
+  # Loop to perform permutations
+  for (i in 1:nsamp) {
+    for (j in 1:k) {
+      theta.mc[i, j] <- myfun(x, grupos[gmat[i, ] == levels(grupos)[j]])
+    }
+  }
+
+  # Center observed and permuted statistics
+  theta.mc.c <- theta.mc - colMeans(theta.mc)
+  theta.hat.c <- theta.hat - colMeans(theta.mc)
+
+  # Histogram plots to visualize permutations
+  par(mfrow = c(1, k))
+  for (j in 1:k) {
+    hist(theta.mc[, j], main = paste('Histogram of permutations for group ', levels(grupos)[j]), ylab = 'Frequencies', col = "#faedcd")
+    abline(v = theta.hat[j], col = "red", lwd = 3)
+  }
+  par(mfrow = c(1, 1))  # Restore plot layout
+
+  # Calculate the proportion of less extreme permutations for each group
+  aslperm <- rep(0, k)
+  for (j in 1:k) {
+    if (alternativa[j] == "unil.inferior") {
+      aslperm[j] <- sum(theta.mc.c[, j] <= theta.hat.c[j]) / nsamp
+    } else if (alternativa[j] == "unil.superior") {
+      aslperm[j] <- sum(theta.mc.c[, j] >= theta.hat.c[j]) / nsamp
+    } else {
+      aslperm[j] <- sum(abs(theta.mc.c[, j]) >= abs(theta.hat.c[j])) / nsamp
+    }
+  }
+
+  # Return the results
+  list(theta.hat = theta.hat, theta.mc = theta.mc, nsa = aslperm, seed = seed)
+}
