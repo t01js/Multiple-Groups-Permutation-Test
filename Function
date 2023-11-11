@@ -69,8 +69,8 @@ perm4samp <- function(x, grupos, myfun, nsamp = 10000, alternativa = c("bilatera
 
 # Perform the permutation test for the two cases
 # Case 1: Difference of means
-resultados_perm_means <- perm4samp(x = heart$age, grupos = heart$cp, myfun = meandif)
+resultados_perm_means <- perm4samp(x = data$variable1, grupos = data$variable2, myfun = meandif)
 
 # Case 2: Difference of medians
-resultados_perm_medians <- perm4samp(x = heart$age, grupos = heart$cp, myfun = median_difer)
+resultados_perm_medians <- perm4samp(x = data$variable1, grupos = data$variable2, myfun = median_difer)
 
