@@ -17,56 +17,60 @@
 ## `permKsamp` Function
 
 ```R
-permKsamp <- function(x, grupos, myfun = mean, nsamp = 10000, alternativa = c("bilateral", "unil.inferior", "unil.superior"), seed = NULL) {
-  # Factorize groups to ensure correct identification of levels
-  grupos <- as.factor(grupos)
-  k <- length(levels(grupos))
+# Install and load the 'permute' library if not already installed
+if (!requireNamespace("permute", quietly = TRUE)) {
+  install.packages("permute")
+}
 
-  # Calculate the statistic of interest for the observed data
-  theta.hat <- tapply(x, grupos, myfun)
+# Load the 'permute' library
+library(permute)
 
-  # Total number of observations and sizes of groups
-  N <- length(x)
-  n <- table(grupos)
+# Function to calculate the difference of medians for two groups
+median_difer <- function(x, grupos) {
+  mediana = tapply(x, grupos, median)
+  diferencia = mediana[1] - mediana[2]
+  names(diferencia) = "Median Difference"
+  diferencia
+}
 
-  # Set seed for reproducibility
-  if (!is.null(seed)) set.seed(seed)
+# Define your function for the difference of means
+meandif <- function(x, grupos) {
+  medias = tapply(x, grupos, mean)
+  dif = medias[1] - medias[2]
+  names(dif) = "Mean Difference"
+  dif
+}
 
-  # Generate matrices and vectors to store results
-  gmat <- replicate(nsamp, sample.int(N, N, replace = FALSE))
-  theta.mc <- matrix(0, nrow = nsamp, ncol = k)
-
-  # Loop to perform permutations
-  for (i in 1:nsamp) {
-    for (j in 1:k) {
-      theta.mc[i, j] <- myfun(x, grupos[gmat[i, ] == levels(grupos)[j]])
-    }
+# Define your function to perform the permutation test for four groups
+perm4samp <- function(x, grupos, myfun, nsamp = 10000, alternativa = c("bilateral", "unil.inferior", "unil.superior"), seed = NULL) {
+  theta.hat = myfun(x, grupos)
+  N = length(x)
+  
+  if (!is.null(seed)) set.seed(seed) 
+  gmat = replicate(nsamp, sample.int(N, N, replace = FALSE))
+  theta.mc = apply(gmat, 2, function(g, x, z) { myfun(x, z[g]) }, x = x, z = grupos)
+  theta.mc.c = theta.mc - mean(theta.mc)
+  theta.hat.c = theta.hat - mean(theta.mc)
+  
+  hist(theta.mc.c, main = 'Histogram of Permutation Differences', ylab = 'Frequencies', col = "#faedcd")
+  abline(v = theta.hat.c, col = "red", lwd = 3)
+  
+  if (alternativa[1] == "unil.inferior") {
+    aslperm = sum(theta.mc.c <= theta.hat.c) / nsamp
+  } else if (alternativa[1] == "unil.superior") {
+    aslperm = sum(theta.mc.c >= theta.hat.c) / nsamp
+  } else {
+    aslperm = sum(abs(theta.mc.c) >= abs(theta.hat.c)) / nsamp
   }
-
-  # Center observed and permuted statistics
-  theta.mc.c <- theta.mc - colMeans(theta.mc)
-  theta.hat.c <- theta.hat - colMeans(theta.mc)
-
-  # Histogram plots to visualize permutations
-  par(mfrow = c(1, k))
-  for (j in 1:k) {
-    hist(theta.mc[, j], main = paste('Histogram of permutations for group ', levels(grupos)[j]), ylab = 'Frequencies', col = "#faedcd")
-    abline(v = theta.hat[j], col = "red", lwd = 3)
-  }
-  par(mfrow = c(1, 1))  # Restore plot layout
-
-  # Calculate the proportion of less extreme permutations for each group
-  aslperm <- rep(0, k)
-  for (j in 1:k) {
-    if (alternativa[j] == "unil.inferior") {
-      aslperm[j] <- sum(theta.mc.c[, j] <= theta.hat.c[j]) / nsamp
-    } else if (alternativa[j] == "unil.superior") {
-      aslperm[j] <- sum(theta.mc.c[, j] >= theta.hat.c[j]) / nsamp
-    } else {
-      aslperm[j] <- sum(abs(theta.mc.c[, j]) >= abs(theta.hat.c[j])) / nsamp
-    }
-  }
-
+  
   # Return the results
   list(theta.hat = theta.hat, theta.mc = theta.mc, nsa = aslperm, seed = seed)
 }
+
+# Perform the permutation test for the two cases
+# Case 1: Difference of means
+resultados_perm_means <- perm4samp(x = heart$age, grupos = heart$cp, myfun = meandif)
+
+# Case 2: Difference of medians
+resultados_perm_medians <- perm4samp(x = heart$age, grupos = heart$cp, myfun = median_difer)
+
