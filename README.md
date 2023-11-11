@@ -25,6 +25,8 @@ The `permKsamp` function is designed for conducting permutation tests on numeric
 4. **Usage Example:**
    ```R
    set.seed(123)
-   data <- c(rnorm(50, mean = 0, sd = 1), rnorm(50, mean = 2, sd = 1), rnorm(50, mean = 5, sd = 1))
-   groups <- rep(1:3, each = 50)
-   results <- permKsamp(data, groups, nsamp = 10000)
+   # Case 1: Difference of means
+   resultados_perm_means <- perm4samp(x = heart$age, grupos = heart$cp, myfun = meandif)
+   
+   # Case 2: Difference of medians
+   resultados_perm_medians <- perm4samp(x = heart$age, grupos = heart$cp, myfun = median_difer)
